@@ -101,7 +101,7 @@ export const ARENA_STAGES = {
       { k: 'crystal', fx: .04, fy: .62, s: 1 }, { k: 'crystal', fx: .96, fy: .68, s: 1.5 }, { k: 'boulder', fx: .10, fy: .92, s: .7 }]
   },
   desert: {
-    name: '사막', sky: ['#e8a355', '#f6c889', '#ffe8bd'], outer: '#d9a86a',
+    name: '사막', sky: ['#c97f36', '#eab673', '#ffe1ab'], outer: '#b98748',
     floor: ['#f0d49b', '#dfb877', '#c39a58'], accent: '#fff3cf', tex: 'dune', lines: 'rgba(255,240,200,.45)',
     side: ['#4d8dff', '#f04b5a'], ambient: 'dust',
     props: [{ k: 'cactus', fx: .07, fy: .14, s: 1.1 }, { k: 'ruin', fx: .93, fy: .16, s: 1.1 },
@@ -1041,7 +1041,7 @@ export class ArenaScene {
         ctx.beginPath(); ctx.moveTo(p.x * W, p.y * H); ctx.lineTo(p.x * W - 5 * p.s, p.y * H + 18 * p.s); ctx.stroke();
       }
     } else if (w === 'sand') {
-      ctx.fillStyle = 'rgba(230,190,130,.10)'; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = 'rgba(230,190,130,.06)'; ctx.fillRect(0, 0, W, H);
       for (const p of this.wparts) {
         p.x += p.v * .022 * (dt / 16) * (1 + p.s);
         if (p.x > 1.05) { p.x = -.05; p.y = Math.random(); }
