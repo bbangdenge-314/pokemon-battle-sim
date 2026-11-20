@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#080b17">
 <title>포켓몬 배틀 시뮬레이터 · Pokémon Battle Simulator</title>
-<meta name="description" content="1~9세대 1,025마리 포켓몬이 실제 기술과 타입 상성으로 싸우는 오토 배틀 시뮬레이터. 11개 배경, 5가지 날씨, 화려한 기술 연출.">
+<meta name="description" content="1~9세대 1,025마리 포켓몬이 2.5D 아레나를 뛰어다니며 실시간으로 난투하는 배틀 시뮬레이터. 최대 6마리 동시 출격, 회피·말풍선·캐스터 중계, 11개 아레나, 5가지 날씨.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='46' fill='%23fff' stroke='%230b1020' stroke-width='8'/><path d='M4 50h92' stroke='%230b1020' stroke-width='10'/><circle cx='50' cy='50' r='15' fill='%23ef4444' stroke='%230b1020' stroke-width='6'/></svg>">
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=20261120">
 </head>
 <body>
 <div id="app">
@@ -16,21 +16,21 @@
     <canvas id="heroCanvas" class="hero-canvas"></canvas>
     <div class="hero-veil"></div>
     <div class="hero-content">
-      <div class="hero-badge">⚡ 1~9세대 · 전국도감 1,025마리</div>
+      <div class="hero-badge">⚡ 1~9세대 · 전국도감 1,025마리 · 실시간 난투</div>
       <h1 class="hero-title">포켓몬 <span>배틀</span> 시뮬레이터</h1>
-      <p class="hero-sub">실제 기술과 타입 상성, 날씨까지 반영한 오토 배틀.<br>장소를 고르고 팀을 짜면, 승부는 알아서 펼쳐집니다.</p>
+      <p class="hero-sub">포켓몬이 아레나를 뛰어다니며 기술을 주고받는 실시간 팀파이트.<br>캐스터의 중계와 함께 6마리의 한타가 펼쳐집니다.</p>
       <div class="hero-actions">
         <button id="startBtn" class="btn btn-primary btn-xl">배틀 시작 <span class="arrow">→</span></button>
         <button id="quickBtn" class="btn btn-ghost btn-xl">🎲 랜덤 배틀 바로 시작</button>
       </div>
       <div class="hero-feats">
         <div class="feat"><b>1,025</b><span>포켓몬</span></div>
-        <div class="feat"><b>11</b><span>배틀 장소</span></div>
-        <div class="feat"><b>5</b><span>날씨</span></div>
+        <div class="feat"><b>11</b><span>아레나</span></div>
+        <div class="feat"><b>6</b><span>동시 난투</span></div>
         <div class="feat"><b>228</b><span>실제 기술 연출</span></div>
       </div>
     </div>
-    <div class="hero-scroll">Lv.50 · 실제 기술 · 오토 배틀</div>
+    <div class="hero-scroll">Lv.50 · 실시간 아레나 · 캐스터 중계</div>
   </section>
 
   <!-- ================= 설정 ================= -->
@@ -55,26 +55,26 @@
         <div class="panel-head">
           <span class="kicker">STEP 1</span>
           <h2>어떤 방식으로 싸울까요?</h2>
-          <p>팀 규모를 정하면 포켓몬 선택 칸이 맞춰집니다. 한 마리가 쓰러지면 다음 포켓몬이 자동으로 나옵니다.</p>
+          <p>팀 규모를 정하면 포켓몬 선택 칸이 맞춰집니다. <b>전원이 한꺼번에 출격</b>해 아레나에서 실시간으로 난투합니다 — 교대 없는 팀파이트입니다.</p>
         </div>
         <div class="mode-grid">
           <button class="mode-card" data-mode="1">
             <div class="mode-art"><span class="mode-num">1</span><span class="mode-vs">vs</span><span class="mode-num">1</span></div>
             <h3>1 대 1</h3>
-            <p>단 한 마리로 승부. 상성과 한 방에 모든 것이 걸린 긴장감.</p>
+            <p>아레나 한가운데 1:1. 상성과 회피 한 번에 모든 것이 걸린 승부.</p>
             <span class="pick-tag">추천 · 빠른 승부</span>
           </button>
           <button class="mode-card" data-mode="2">
             <div class="mode-art"><span class="mode-num">2</span><span class="mode-vs">vs</span><span class="mode-num">2</span></div>
             <h3>2 대 2</h3>
-            <p>교체의 흐름을 읽는 재미. 두 번째 카드로 판을 뒤집어 보세요.</p>
-            <span class="pick-tag">균형</span>
+            <p><b>4마리가 동시에</b> 뛰어듭니다. 둘로 갈라 치고, 한 점에 모아 한타를 엽니다.</p>
+            <span class="pick-tag">균형 · 4마리 난투</span>
           </button>
           <button class="mode-card" data-mode="3">
             <div class="mode-art"><span class="mode-num">3</span><span class="mode-vs">vs</span><span class="mode-num">3</span></div>
             <h3>3 대 3</h3>
-            <p>풀 팀 배틀. 3마리의 조합과 엔트리 순서가 승패를 가릅니다.</p>
-            <span class="pick-tag">추천 · 진검승부</span>
+            <p><b>6마리 전원 출격.</b> 광역기와 회피가 뒤엉키는 풀 한타. 팀 조합이 승패를 가릅니다.</p>
+            <span class="pick-tag">추천 · 6마리 한타</span>
           </button>
         </div>
       </section>
@@ -84,7 +84,7 @@
         <div class="panel-head">
           <span class="kicker">STEP 2</span>
           <h2>어디에서 싸울까요?</h2>
-          <p>장소마다 분위기와 움직이는 배경 요소가 다릅니다. 선택한 장소가 배틀 화면에 그대로 그려집니다.</p>
+          <p>11개 장소마다 아레나 바닥·경계선·장식이 다릅니다. 포켓몬이 실제로 뛰어다닐 2.5D 전장이 그대로 펼쳐집니다.</p>
         </div>
         <div class="stage-grid" id="stageGrid"></div>
       </section>
@@ -163,7 +163,7 @@
             <div class="winrate" id="winRate"></div>
             <div class="type-analysis" id="typeAnalysis"></div>
             <button class="btn btn-primary btn-lg" id="startBattle">전투 시작! <span class="arrow">⚔</span></button>
-            <p class="tiny">오토 배틀 · 배속 1x/2x/3x · 일시정지 지원</p>
+            <p class="tiny">실시간 아레나 난투 · 배속 1x/2x/3x · 일시정지 지원</p>
           </div>
         </div>
       </section>
@@ -181,9 +181,27 @@
     <div class="battle-layout">
       <div class="stage-wrap" id="stageWrap">
         <canvas id="sceneCanvas"></canvas>
+        <canvas id="arenaCanvas"></canvas>
+
+        <!-- 상단 캐스터 · 해설 중계 -->
+        <div class="cast-bar" id="castBar">
+          <div class="cast-talent">
+            <span class="ct-ava">🎙️</span>
+            <div class="ct-id"><b>민서</b><i>캐스터</i></div>
+          </div>
+          <div class="cast-lines" id="castLines">
+            <div class="cast-empty">중계 준비 중…</div>
+          </div>
+          <div class="cast-talent right">
+            <span class="ct-ava">🧠</span>
+            <div class="ct-id"><b>도현</b><i>해설</i></div>
+          </div>
+        </div>
+
         <div class="stage-top">
           <div class="weather-chip" id="weatherChip">☀️ 맑음</div>
-          <div class="turn-chip" id="turnChip">TURN 1</div>
+          <div class="turn-chip" id="turnChip">00:00</div>
+          <div class="mode-chip" id="modeChip">1 : 1 난투</div>
           <div class="battle-tools">
             <div class="speed-group" id="speedGroup">
               <button data-speed="1" class="on">1x</button>
@@ -194,42 +212,10 @@
           </div>
         </div>
 
-        <div class="mons" id="monsLayer">
-          <div class="mon mon-ally" id="monA">
-            <div class="mon-shadow"></div>
-            <div class="mon-img-wrap"><img id="imgA" alt=""></div>
-            <div class="mon-fx" id="auraA"></div>
-          </div>
-          <div class="mon mon-enemy" id="monB">
-            <div class="mon-shadow"></div>
-            <div class="mon-img-wrap"><img id="imgB" alt=""></div>
-            <div class="mon-fx" id="auraB"></div>
-          </div>
-        </div>
+        <div class="team-hud team-hud-a" id="teamHudA"></div>
+        <div class="team-hud team-hud-b" id="teamHudB"></div>
 
-        <div class="hud hud-ally" id="hudA">
-          <div class="hud-top">
-            <span class="hud-name" id="nameA">-</span>
-            <span class="hud-lv">Lv.50</span>
-            <span class="hud-status" id="statusA"></span>
-          </div>
-          <div class="hp-bar"><i id="hpFillA"></i><span class="hp-num" id="hpTextA">0 / 0</span></div>
-          <div class="hud-types" id="typesA"></div>
-        </div>
-        <div class="hud hud-enemy" id="hudB">
-          <div class="hud-top">
-            <span class="hud-name" id="nameB">-</span>
-            <span class="hud-lv">Lv.50</span>
-            <span class="hud-status" id="statusB"></span>
-          </div>
-          <div class="hp-bar"><i id="hpFillB"></i><span class="hp-num" id="hpTextB">0 / 0</span></div>
-          <div class="hud-types" id="typesB"></div>
-        </div>
-
-        <div class="popup-layer" id="popupLayer"></div>
         <div class="banner" id="banner"></div>
-        <div class="move-toast" id="moveToast"></div>
-        <canvas id="fxCanvas"></canvas>
         <div class="stage-hitstop" id="hitstop"></div>
       </div>
 
@@ -296,6 +282,6 @@
   <div class="toast" id="toast"></div>
 </div>
 
-<script type="module" src="js/main.js"></script>
+<script type="module" src="js/main.js?v=20261120"></script>
 </body>
 </html>

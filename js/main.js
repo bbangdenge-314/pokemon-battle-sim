@@ -3,9 +3,12 @@
    ========================================================================== */
 import { DATA, } from './data.js';
 import {
-  TYPE_COLORS, WEATHERS, STAGE_META, statsAt50, typeEff, estimateWinRate, moveById, monById, josa
+  TYPE_COLORS, WEATHERS, STAGE_META, statsAt50, typeEff, moveById, monById, josa
 } from './engine.js';
 import { Scene, STAGE_LIST } from './scenes.js';
+import { ArenaScene } from './arena-scenes.js';
+import { arenaWinRate, ArenaBattle } from './arena.js';
+window.__ARENA__ = { ArenaBattle };
 import { getArt, preloadArt, playCry, sfx, setSound, isSoundOn, unlockAudio } from './sprites.js';
 import { BattleUI } from './battle-ui.js';
 import { weatherIcon, stageIcon } from './icons.js';
@@ -133,7 +136,7 @@ function ensureMiniScenes() {
     if (m.scene) return;
     const r = m.canvas.getBoundingClientRect();
     if (!r.width) return;
-    m.scene = new Scene(m.canvas, m.id, 'clear', true, false, false);
+    m.scene = new ArenaScene(m.canvas, m.id, 'clear', true, false);
   });
   if (!miniTicking) { miniTicking = true; tickMinis(); }
 }
@@ -180,7 +183,7 @@ function ensureWeatherPreview() {
   const r = canvas.getBoundingClientRect();
   if (!r.width) { setTimeout(ensureWeatherPreview, 60); return; }
   if (weatherScene) weatherScene.destroy();
-  weatherScene = new Scene(canvas, state.stage, state.weather, true, true, false);
+  weatherScene = new ArenaScene(canvas, state.stage, state.weather, true, true);
   const w = WEATHERS[state.weather];
   $('#wpLabel').textContent = `${w.name} · ${w.tips.join(' / ')}`;
 }
@@ -410,8 +413,8 @@ function renderPreview() {
   $('#previewMeta').innerHTML = `
     <span class="meta-pill">${stageIcon(state.stage)} ${STAGE_META[state.stage].name}</span>
     <span class="meta-pill">${weatherIcon(state.weather)} ${WEATHERS[state.weather].name}</span>
-    <span class="meta-pill">⚔ ${state.mode} vs ${state.mode}</span>
-    <span class="meta-pill">Lv.50 · 체력 ×1.6</span>`;
+    <span class="meta-pill">⚔ ${state.mode} vs ${state.mode} · ${state.mode * 2}마리 동시 출격</span>
+    <span class="meta-pill">Lv.50 · 실시간 아레나</span>`;
   const teamHtml = (side, arr) => `
     <div class="pt-side">
       <h4>${side === 'A' ? '내 팀' : '상대 팀'}</h4>
@@ -433,7 +436,7 @@ function renderPreview() {
     sfx('click');
   };
 
-  const wr = estimateWinRate(A.filter(Boolean), B.filter(Boolean), state.weather, 24);
+  const wr = arenaWinRate(A.filter(Boolean), B.filter(Boolean), state.weather, 7);
   $('#winRate').innerHTML = `
     <div class="wr-num" style="color:${wr >= 50 ? '#8fc0ff' : '#ff9aa4'}">${wr}<small>%</small></div>
     <div class="wr-meta">
@@ -597,7 +600,7 @@ async function startBattle() {
   // 아트워크 선로딩
   await preloadArt([...A, ...B]);
   battleUI.setup({ teamA: A, teamB: B, weather: state.weather, stage: state.stage });
-  requestAnimationFrame(() => { battleUI.scene.resize(); battleUI.fx.resize(); });
+  requestAnimationFrame(() => { battleUI.resize(); battleUI.scene.resize(); });
   battleUI.run();
 }
 
@@ -698,7 +701,27 @@ window.PBS = {
   setWeather: (id) => { state.weather = id; $$('.weather-card').forEach((c) => c.classList.toggle('on', c.dataset.weather === id)); if (weatherScene) weatherScene.setWeather(id); },
   setTeams: (A, B) => { state.teams.A = A.slice(); state.teams.B = B.slice(); state.mode = A.length; renderTeams(); },
   battle: () => battleUI,
-  start: startBattle
+  start: startBattle,
+  bench: (mode = 3, runs = 20, weather = 'clear') => {
+    const { ArenaBattle } = window.__ARENA__;
+    const pool = DEX.filter((d) => d.st.reduce((a, b) => a + b, 0) >= 430);
+    const out = [];
+    for (let i = 0; i < runs; i++) {
+      const pick = () => {
+        const used = new Set();
+        const arr = [];
+        while (arr.length < mode) { const d = pool[Math.floor(Math.random() * pool.length)]; if (!used.has(d.id)) { used.add(d.id); arr.push(d.id); } }
+        return arr;
+      };
+      const A = pick(), B = pick();
+      const t0 = performance.now();
+      const b = new ArenaBattle({ teamA: A, teamB: B, weather, seed: 1234 + i * 7919 });
+      const r = b.runHeadless(3200);
+      out.push({ dur: +r.duration.toFixed(1), win: r.winner, ms: Math.round(performance.now() - t0), casts: b.castCount, dodges: b.dodgeCount, hits: b.hitCount });
+    }
+    const durs = out.map((o) => o.dur).sort((a, b) => a - b);
+    return { avg: +(durs.reduce((a, b) => a + b, 0) / durs.length).toFixed(1), min: durs[0], max: durs[durs.length - 1], durs, out };
+  }
 };
 
 document.addEventListener('DOMContentLoaded', init);

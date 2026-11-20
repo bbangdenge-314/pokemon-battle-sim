@@ -362,7 +362,7 @@ p { margin: 0; }
 #fxCanvas { pointer-events: none; z-index: 6; }
 .stage-wrap::after {
   content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 7;
-  box-shadow: inset 0 0 120px rgba(0,0,0,.55), inset 0 -60px 90px rgba(0,0,0,.5);
+  box-shadow: inset 0 0 90px rgba(0,0,0,.34), inset 0 -40px 60px rgba(0,0,0,.24);
 }
 .stage-top { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; gap: 10px; padding: 14px 16px; z-index: 10; }
 .weather-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 800; padding: 6px 12px 6px 8px; border-radius: 999px; background: rgba(8,12,24,.66); border: 1px solid rgba(255,255,255,.14); backdrop-filter: blur(8px); }
@@ -502,6 +502,7 @@ p { margin: 0; }
 .banner.crit { color: #ffe066; border-color: rgba(255,210,90,.5); box-shadow: 0 0 40px rgba(255,200,60,.35); }
 .banner.super { color: #ff9a5c; border-color: rgba(255,140,80,.5); box-shadow: 0 0 40px rgba(255,120,60,.3); }
 .banner.weak { color: #9fb4d8; }
+.banner.start { color: #bcd6ff; border-color: rgba(120,170,255,.5); box-shadow: 0 0 40px rgba(90,140,255,.35); }
 .banner.none { color: #8b93ad; }
 @keyframes bannerPop {
   0% { opacity: 0; transform: translate(-50%, -50%) scale(.72); }
@@ -746,3 +747,98 @@ p { margin: 0; }
 @media (prefers-reduced-motion: reduce) {
   .mon-img-wrap, .dmg-pop, .banner, .screen.active { animation-duration: .01s !important; }
 }
+
+/* ================= 실시간 아레나 배틀 ================= */
+#sceneCanvas { z-index: 1; }
+#arenaCanvas { z-index: 3; }
+.stage-wrap::after { z-index: 6; }
+
+/* 캐스터 · 해설 중계 바 */
+.cast-bar {
+  position: absolute; left: 0; right: 0; top: 46px; z-index: 12;
+  display: flex; align-items: center; gap: 10px; padding: 4px 14px 10px;
+  background: linear-gradient(180deg, rgba(5,9,18,.86), rgba(5,9,18,.42) 58%, rgba(5,9,18,0));
+  pointer-events: none;
+}
+.cast-talent { display: flex; align-items: center; gap: 7px; flex: none; }
+.ct-ava {
+  width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 14px; background: rgba(77,141,255,.2); border: 1px solid rgba(120,170,255,.5);
+  box-shadow: 0 0 14px rgba(80,140,255,.35);
+}
+.cast-talent.right .ct-ava { background: rgba(255,180,90,.16); border-color: rgba(255,200,120,.5); box-shadow: 0 0 14px rgba(255,180,90,.28); }
+.ct-id b { display: block; font-size: 11.5px; font-weight: 900; line-height: 1.15; }
+.ct-id i { font-style: normal; font-size: 8.5px; font-weight: 800; letter-spacing: .12em; color: #8b93ad; }
+.cast-lines {
+  flex: 1; min-width: 0; height: 56px; display: flex; flex-direction: column;
+  justify-content: flex-end; gap: 3px; overflow: hidden; padding-top: 2px;
+}
+.cast-empty { font-size: 11px; color: #6b7492; font-weight: 700; }
+.cast-line {
+  display: flex; gap: 6px; align-items: flex-start; min-width: 0; overflow: hidden;
+  font-size: 12.5px; font-weight: 800; line-height: 1.35; color: #e8eeff;
+  opacity: 0; transform: translateY(6px); transition: opacity .24s ease, transform .24s ease;
+}
+.cast-line.show { opacity: 1; transform: none; }
+.cast-line i { font-style: normal; font-size: 11px; flex: none; margin-top: 1px; }
+.cast-line span { min-width: 0; flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.cast-line.analyst { color: #cfd9f5; font-weight: 700; }
+.cast-line.analyst span { color: #c2cde9; }
+.cast-lines .cast-line:nth-last-child(2) { opacity: .5; font-size: 11.5px; }
+.cast-lines .cast-line:nth-last-child(2).show { opacity: .5; }
+
+/* 상단 칩 */
+.stage-top { z-index: 13; }
+.mode-chip {
+  font-size: 10.5px; font-weight: 900; letter-spacing: .06em; padding: 6px 10px; border-radius: 999px;
+  background: rgba(8,12,24,.66); border: 1px solid rgba(255,255,255,.12); color: #cfd8f2;
+}
+
+/* 양 팀 전원 HP */
+.team-hud {
+  position: absolute; top: 102px; z-index: 11; display: flex; flex-direction: column; gap: 4px; pointer-events: none;
+}
+.team-hud-a { left: 12px; }
+.team-hud-b { right: 12px; }
+.th-row {
+  display: flex; align-items: center; gap: 6px; padding: 2px 6px; border-radius: 7px;
+  background: rgba(6,10,20,.6); border: 1px solid rgba(255,255,255,.08);
+  backdrop-filter: blur(6px); transition: opacity .2s;
+}
+.team-hud-b .th-row { flex-direction: row-reverse; }
+.th-name { font-size: 10px; font-weight: 900; color: #dfe7fb; width: 52px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.team-hud-b .th-name { text-align: right; }
+.th-track { display: block; width: 54px; height: 5px; border-radius: 3px; background: rgba(255,255,255,.12); overflow: hidden; }
+.th-track i { display: block; height: 100%; width: 100%; border-radius: 3px; background: linear-gradient(90deg, #35d17f, #8bf0b4); transition: width .18s linear; }
+.th-track i.mid { background: linear-gradient(90deg, #e8b93a, #ffe08a); }
+.th-track i.low { background: linear-gradient(90deg, #e83a3a, #ff8a8a); }
+.th-status { font-size: 8.5px; font-weight: 900; color: #ffd166; width: 10px; }
+.th-row.dead { opacity: .32; filter: grayscale(1); }
+
+/* 로스터 미니 HP 바 */
+.roster-mon .rm-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.roster-mon .rm-hpbar { display: block; height: 4px; border-radius: 2px; background: rgba(255,255,255,.1); overflow: hidden; }
+.roster-mon .rm-hpbar i { display: block; height: 100%; background: linear-gradient(90deg, #36d17f, #8bf0b4); transition: width .2s linear; }
+
+/* 결과 통계 */
+.result-stats .rs-row em { display: block; font-style: normal; font-size: 9px; font-weight: 700; color: #7f88a6; margin-top: 1px; }
+.result-stats .rs-row.out { opacity: .55; }
+
+@media (max-width: 980px) {
+  .team-hud { top: 96px; }
+  .th-name { width: 40px; }
+  .th-track { width: 44px; }
+}
+@media (max-width: 760px) {
+  .cast-bar { top: 0; padding: 4px 8px 8px; gap: 6px; }
+  .stage-wrap::after { box-shadow: inset 0 0 50px rgba(0,0,0,.22); }
+  .cast-talent { display: none; }
+  .cast-lines { height: 32px; }
+  .cast-line { font-size: 10.5px; }
+  .cast-lines .cast-line:nth-last-child(2) { display: none; }
+  .stage-top { top: 34px; padding: 4px 8px; gap: 5px; }
+  .mode-chip { display: none; }
+  .team-hud { display: none; }
+  .turn-chip { padding: 4px 8px; }
+}
+@media (prefers-reduced-motion: reduce) { .cast-line { transition: none; } }

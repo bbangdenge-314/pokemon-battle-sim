@@ -2,14 +2,14 @@
 <style>body{margin:0;background:#05070f;color:#fff;font-family:sans-serif;display:grid;grid-template-columns:repeat(3,480px);gap:12px;padding:12px}#g canvas{width:480px;height:300px;border-radius:12px;display:block}</style>
 <div id="g"></div>
 <script type="module">
-import { Scene, STAGE_LIST } from '../js/scenes.js';
+import { ArenaScene, ARENA_STAGES } from '../js/arena-scenes.js';
 const g=document.getElementById('g');
 const scenes=[];
-for (const id of STAGE_LIST) {
+for (const id of Object.keys(ARENA_STAGES)) {
   const d=document.createElement('div');
   d.innerHTML=`<canvas></canvas><div>${id}</div>`;
   g.appendChild(d);
-  scenes.push(new Scene(d.querySelector('canvas'), id, 'clear', false, true, false));
+  scenes.push(new ArenaScene(d.querySelector('canvas'), id, 'clear', false, true));
 }
 window.__scenes=scenes;
 window.ready=true;
