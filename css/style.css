@@ -579,9 +579,9 @@ p { margin: 0; }
 }
 @keyframes resultIn { from { transform: translateY(24px) scale(.94); opacity: 0; } to { transform: none; opacity: 1; } }
 .result-crown { font-size: 40px; margin-bottom: 6px; }
-#winnerTitle { font-size: clamp(32px, 6vw, 46px); font-weight: 900; letter-spacing: -.04em; background: linear-gradient(120deg, #ffd166, #ff8a5b); -webkit-background-clip: text; background-clip: text; color: transparent; }
-#winnerTitle.lose { background: linear-gradient(120deg, #9fb4d8, #6f7da0); -webkit-background-clip: text; background-clip: text; }
-#winnerTitle.draw { background: linear-gradient(120deg, #c9b3ff, #9fb4d8); -webkit-background-clip: text; background-clip: text; }
+#winnerTitle { font-size: clamp(32px, 6vw, 46px); font-weight: 900; letter-spacing: -.04em; background: linear-gradient(120deg, #ffd166, #ff8a5b); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; }
+#winnerTitle.lose { background: linear-gradient(120deg, #9fb4d8, #6f7da0); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+#winnerTitle.draw { background: linear-gradient(120deg, #c9b3ff, #9fb4d8); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
 #resultSub { color: var(--muted); font-size: 13.5px; margin-top: 8px; }
 .result-mvp {
   display: flex; align-items: center; gap: 14px; justify-content: center; margin: 22px 0;
@@ -595,7 +595,7 @@ p { margin: 0; }
 .result-stats { display: grid; gap: 8px; margin-bottom: 22px; }
 .rs-team { text-align: left; }
 .rs-team h5 { font-size: 11px; font-weight: 900; color: var(--dim); letter-spacing: .1em; margin: 0 0 6px; }
-.rs-row { display: grid; grid-template-columns: 26px 1fr 70px 56px; gap: 8px; align-items: center; font-size: 12px; padding: 4px 0; }
+.rs-row { display: grid; grid-template-columns: 26px minmax(72px, max-content) 1fr 58px; gap: 10px; align-items: center; font-size: 12px; padding: 4px 0; }
 .rs-row img { width: 26px; height: 26px; object-fit: contain; filter: grayscale(var(--g, 0)); }
 .rs-row .rs-name { font-weight: 800; }
 .rs-row .rs-bar { height: 6px; border-radius: 4px; background: rgba(255,255,255,.08); overflow: hidden; }
