@@ -9,6 +9,14 @@ import { ArenaBattle, TUNE } from './arena.js';
 import { getArt, playCry, sfx } from './sprites.js';
 import { weatherIcon } from './icons.js';
 import { Commentator, CAST_TEAM } from './commentary.js';
+import {
+  drawProjectile, drawCast, drawHitState, drawZoneDecor, emitCastParticles, drawParticle,
+  impactBurst, emitLeaves, emitWater, emitSpark, emitEmber, emitFrost, emitDust,
+  emitPoison, emitWisp, shapeOf, gimmickOf
+} from './fx-arena.js';
+
+/* 기본 배속 — 1x의 실제 시뮬레이션 시간 배율(연출·중계를 따라가기 쉽게 0.65배) */
+export const SPEED_BASE = 0.65;
 
 const $ = (s) => document.querySelector(s);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -195,8 +203,10 @@ export class BattleUI {
     if (!this.running) return;
     const raw = clamp((ts - (this._last || ts)) / 1000, 0, .06);
     this._last = ts;
+    const scale = this.speed * SPEED_BASE;
+    const sdt = this.paused ? 0 : raw * scale;
     if (!this.paused) {
-      let left = raw * this.speed;
+      let left = raw * scale;
       let steps = 0;
       while (left > 0 && steps < 10) {
         const s = Math.min(left, 1 / 60);
@@ -204,15 +214,15 @@ export class BattleUI {
         this._drain();
         left -= s; steps++;
       }
-      this.sceneT += raw * this.speed * 1000;
-      this.scene.tick(raw * this.speed * 1000);
-      this._tickCommentary(raw);
+      this.sceneT += sdt * 1000;
+      this.scene.tick(sdt * 1000);
+      this._tickCommentary(sdt);
       if (this.battle.finished) {
         this._endT += raw;
         if (this._endT > 1.3) { this._showResult(); return; }
       }
     }
-    this._draw(raw);
+    this._draw(raw, sdt);
     this._syncHud(raw);
     this._raf = requestAnimationFrame(this._loop);
   }
@@ -275,7 +285,17 @@ export class BattleUI {
         }
         const color = ev.crit ? '#ffe066' : ev.eff >= 2 ? '#ff9a5c' : ev.eff < 1 ? '#9fb4d8' : '#ffffff';
         this._text(ev.x, ev.y, `-${ev.amount}`, color, ev.crit ? 24 : ev.eff >= 2 ? 21 : 18);
-        this._burst(ev.x, ev.y, ev.type, ev.crit ? 16 : 9, ev.crit || ev.eff >= 2);
+        const strong = ev.crit || ev.eff >= 2;
+        this._burst(ev.x, ev.y, ev.type, strong ? 16 : 9, strong);
+        // 피겨 몸에 붙는 타입별 피격 상태 연출 (감전·화상·빙결 등)
+        const df = (ev.side === 'A' ? this.battle.A : this.battle.B)[ev.idx];
+        if (df) {
+          df.hitFx = {
+            type: ev.type, t: 0, dur: strong ? .8 : .62,
+            color: TYPE_COLORS[ev.type] || '#ffffff', second: '#ffffff', strong
+          };
+          df.zapT = (df.zapT || 0) + 1;
+        }
         if (ev.crit || ev.eff >= 2) { this._shake(ev.crit ? 6 : 3.5); this._hitstop(ev.crit); }
         this._sfx(ev.crit ? 'crit' : ev.eff >= 2 ? 'super' : 'hit', .05, ev.crit ? 1.2 : .8);
         this.comm.on({ ...ev, attName: nameOf(ev.aSide, ev.aIdx), defName: nameOf(ev.side, ev.idx) });
@@ -313,6 +333,10 @@ export class BattleUI {
       case 'status': {
         const f = (ev.side === 'A' ? this.battle.A : this.battle.B)[ev.idx];
         if (f) f.statusChip = ev.text;
+        if (f && ['brn', 'par', 'frz', 'psn'].includes(ev.status)) {
+          const stType = { brn: '불꽃', par: '전기', frz: '얼음', psn: '독' }[ev.status];
+          f.hitFx = { type: stType, t: 0, dur: .8, color: TYPE_COLORS[stType] || '#fff', second: '#ffffff' };
+        }
         if (ev.status === 'slp') this._text(ev.x, ev.y, 'Zzz', '#b8c8e8', 15);
         break;
       }
@@ -359,18 +383,27 @@ export class BattleUI {
   }
 
   _spawnFx(ev) {
-    const dur = ev.fx === 'zone' ? ev.dur : .34;
+    // 기술 종류별 연출 지속시간
+    const durMap = {
+      stream: ev.big ? .72 : .6, beam: .46, bolt: .5, wave: .55, burst: .55,
+      pillar: .6, shadow: .55, cage: .6, drain: .5, bite: .34, slash: .34, rush: .34,
+      zone: ev.dur, zonehit: .4, ring: .45, muzzle: .3, impact: .3, buff: .7, shield: .5, status: .6
+    };
+    const dur = durMap[ev.fx] !== undefined ? durMap[ev.fx] : .34;
     this.fxList.push({ ...ev, t: 0, dur, seed: rnd(10) });
     const W = this.cvW, H = this.cvH;
     const p = project(ev.x, ev.y, W, H);
-    const t2 = ev.tx !== undefined ? project(ev.tx, ev.ty, W, H) : null;
+    const type = ev.type;
     switch (ev.fx) {
       case 'muzzle':
         this._puff(ev.x, ev.y, ev.color, 4, .5);
         break;
-      case 'impact':
-        this._burst(ev.x, ev.y, null, 12, false, ev.color);
+      case 'impact': {
+        // 착탄: 타입별 파편 (물보라·잎조각·불티·얼음 결정·전기 스파크)
+        impactBurst(this.parts, p.x, p.y - 18, type, ev.color, !!ev.big, 1);
+        this._ring(ev.x, ev.y, ev.color || '#fff');
         break;
+      }
       case 'rush':
         for (let i = 0; i < 8; i++) {
           this.parts.push({
@@ -380,7 +413,7 @@ export class BattleUI {
         }
         break;
       case 'zonehit':
-        this._burst(ev.x, ev.y, null, 22, true, ev.color);
+        impactBurst(this.parts, p.x, p.y, type, ev.color, true, 1.15);
         this._shake(3);
         break;
       case 'buff':
@@ -410,16 +443,7 @@ export class BattleUI {
     const W = this.cvW, H = this.cvH;
     const p = project(x, y, W, H);
     const col = colorOverride || (type ? TYPE_COLORS[type] : '#ffffff') || '#fff';
-    for (let i = 0; i < n; i++) {
-      const a = rnd(TAU);
-      const sp = rnd(strong ? 260 : 170, 40);
-      this.parts.push({
-        x: p.x, y: p.y - 18, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * .6 - 40,
-        life: .55, max: .55, size: rnd(strong ? 8 : 5.5, 1.8), color: i % 3 === 0 ? '#ffffff' : col,
-        type: i % 4 === 0 ? 'spark' : 'dot'
-      });
-    }
-    if (strong) this.fxList.push({ fx: 'ring', x, y, t: 0, dur: .34, color: col });
+    impactBurst(this.parts, p.x, p.y - 20, type, col, strong, strong ? 1.2 : .9);
   }
 
   _ring(x, y, color) {
@@ -441,10 +465,11 @@ export class BattleUI {
   }
 
   /* ---------------- 그리기 ---------------- */
-  _draw(dt) {
+  _draw(dt, sdt) {
     const ctx = this.actx, W = this.cvW, H = this.cvH;
     ctx.clearRect(0, 0, W, H);
     const t = this.sceneT / 1000;
+    const tick = sdt === undefined ? dt : sdt;
     // 흔들림
     if (this.shakeT > 0) {
       this.shakeT -= dt;
@@ -464,14 +489,28 @@ export class BattleUI {
       else this.scene.drawProp(ctx, a.prop, t, W, H);
     }
 
-    this._drawProjectiles(ctx, W, H, t);
-    this._drawFx(ctx, W, H, t);
-    this._drawParts(ctx, dt);
+    this._drawProjectiles(ctx, W, H, t, tick);
+    this._drawFx(ctx, W, H, t, tick);
+    this._drawParts(ctx, tick);
     this._drawBars(ctx, W, H);
-    this._drawBubbles(ctx, W, H);
+    this._drawBubbles(ctx, W, H, tick);
     this._drawTexts(ctx, dt);
     ctx.restore();
     this._drawFront(ctx, W, H, t, dt);
+    // 피격 상태 타이머
+    for (const f of this.battle.all) {
+      if (f.hitFx) {
+        f.hitFx.t += tick;
+        if (f.hitFx.t >= f.hitFx.dur) f.hitFx = null;
+      }
+    }
+  }
+
+  /* 화면 좌표 계수(카메라) */
+  cam() {
+    const c = this._camObj || (this._camObj = { W: 0, H: 0, unit: 0, small: false, project, t: 0 });
+    c.W = this.cvW; c.H = this.cvH; c.unit = this.unit; c.small = this.small; c.t = this.sceneT / 1000;
+    return c;
   }
 
   _drawZones(ctx, W, H, t) {
@@ -492,6 +531,8 @@ export class BattleUI {
       ctx.lineWidth = 2;
       ctx.beginPath(); ctx.ellipse(p.x, p.y, rx * prog, ry * prog, 0, 0, TAU); ctx.stroke();
       ctx.restore();
+      // 장판 종류별 기믹 (지진 균열 · 유성 낙하 · 눈보라 회오리)
+      drawZoneDecor(ctx, z, p, rx, ry, t, this.cam());
     }
   }
 
@@ -547,7 +588,10 @@ export class BattleUI {
     const bob = Math.sin(t * 3 + f.phase) * h * .016;
     const lunge = f.lungeT > 0 ? Math.sin((f.lungeT / .22) * Math.PI) * h * .1 * (f.face) : 0;
     const shake = f.hitFlash > 0 ? Math.sin(this.sceneT * .09) * h * .02 * (f.hitFlash / .18) : 0;
-    const cx = p.x + lunge + shake;
+    // 감전 중에는 몸이 미세하게 지직거린다
+    const zap = f.hitFx && gimmickOf(f.hitFx.type) === 'spark'
+      ? (Math.random() - .5) * h * .032 * (1 - f.hitFx.t / f.hitFx.dur) : 0;
+    const cx = p.x + lunge + shake + zap;
     const cy = p.y + bob;
 
     // 시전 오라
@@ -587,10 +631,13 @@ export class BattleUI {
     }
     ctx.restore();
 
+    // 타입별 피격 상태 연출 (감전 아크 · 불티 · 서리 결정 · 물방울 ...)
+    if (alive) drawHitState(ctx, f, this.cam(), cx, cy, dh, 0, t);
+
     // 상태이상 표시 (머리 위 작은 아이콘)
     if (alive && f.status) {
       const icons = { brn: '🔥', par: '⚡', psn: '☠', slp: '💤', frz: '❄' };
-      ctx.font = `${Math.max(9, h * .13)}px sans-serif`;
+      ctx.font = `${Math.max(10, h * .15)}px sans-serif`;
       ctx.textAlign = 'center';
       ctx.fillText(icons[f.status] || '', cx + h * .26, cy - h * .72);
     }
@@ -646,11 +693,12 @@ export class BattleUI {
     }
   }
 
-  _drawBubbles(ctx, W, H) {
+  _drawBubbles(ctx, W, H, tick) {
     const list = [];
+    const dtt = tick === undefined ? 1 / 60 : tick;
     for (const f of this.battle.all) {
       if (!f.bubble) continue;
-      f.bubble.t += 1 / 60;
+      f.bubble.t += dtt;
       if (f.bubble.t > f.bubble.dur) { f.bubble = null; continue; }
       const p = project(f.x, f.y, W, H);
       const h = this.unit * p.s;
@@ -730,269 +778,73 @@ export class BattleUI {
     }
   }
 
-  _drawProjectiles(ctx, W, H, t) {
+  _drawProjectiles(ctx, W, H, t, tick) {
+    const cam = this.cam();
     for (const p of this.battle.projectiles) {
-      const s = project(p.x, p.y, W, H);
-      const size = clamp(this.unit * .1 * s.s, 3, 12) * (p.spec.big ? 1.6 : 1);
-      const col = p.spec.color || '#fff';
-      ctx.save();
-      ctx.globalCompositeOperation = 'lighter';
-      // 꼬리
-      const back = project(p.x - p.vx * .05, p.y - p.vy * .05, W, H);
-      const grad = ctx.createLinearGradient(back.x, back.y, s.x, s.y);
-      grad.addColorStop(0, hexA(col, 0));
-      grad.addColorStop(1, hexA(col, .55));
-      ctx.strokeStyle = grad;
-      ctx.lineWidth = size * 1.2;
-      ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(back.x, back.y); ctx.lineTo(s.x, s.y); ctx.stroke();
-      // 본체
-      const g = ctx.createRadialGradient(s.x, s.y - 6, 0, s.x, s.y - 6, size * 2);
-      g.addColorStop(0, '#ffffff');
-      g.addColorStop(.35, col);
-      g.addColorStop(1, hexA(col, 0));
-      ctx.fillStyle = g;
-      ctx.beginPath(); ctx.arc(s.x, s.y - 6, size * 2, 0, TAU); ctx.fill();
-      ctx.restore();
+      drawProjectile(ctx, p, cam);
+    }
+    // 투사체 비행 궤적의 잔여 파티클 (잎·물방울·불티)
+    if (this.battle.projectiles.length) this._projParts(tick || .016);
+  }
+
+  _projParts(dt) {
+    if (this._projT === undefined) this._projT = 0;
+    this._projT += dt;
+    if (this._projT < .055) return;
+    this._projT = 0;
+    const cam = this.cam();
+    for (const p of this.battle.projectiles) {
+      if (!p._tr || p._tr.length < 2) continue;
+      const q = p._tr[p._tr.length - 2];
+      const shape = shapeOf({ shape: p.spec && p.spec.shape, type: p.move && p.move.t });
+      const col = (p.spec && p.spec.color) || '#fff';
+      const sec = (p.spec && p.spec.second) || '#ffffff';
+      if (shape === 'leaf') emitLeaves(this.parts, q.x, q.y, -p.vx * 2, .5, 1, col, sec, 40, 5);
+      else if (shape === 'water') emitWater(this.parts, q.x, q.y, Math.PI, .6, 1, col, sec, 30, 2.6);
+      else if (shape === 'flame') emitEmber(this.parts, q.x, q.y, Math.PI, .6, 1, col, sec, 30, 2.6);
+      else if (shape === 'ice') emitFrost(this.parts, q.x, q.y, Math.PI, .6, 1, col, sec, 26, 2.4);
+      else if (shape === 'spark') emitSpark(this.parts, q.x, q.y, Math.PI, .7, 1, col, sec, 60, 1.8);
+      else if (shape === 'shadow') emitWisp(this.parts, q.x, q.y, Math.PI, .7, 1, col, sec, 20, 3.4);
     }
   }
 
-  _drawFx(ctx, W, H, t) {
+  _drawFx(ctx, W, H, t, tick) {
     const keep = [];
+    const cam = this.cam();
+    const dt = tick === undefined ? 1 / 60 : tick;
     for (const fx of this.fxList) {
-      fx.t += 1 / 60;
-      const k = fx.t / fx.dur;
+      fx.t += dt;
+      const k = clamp(fx.t / fx.dur, 0, 1);
       if (k >= 1) continue;
-      const a = project(fx.x, fx.y, W, H);
-      const col = fx.color || '#ffffff';
-      ctx.save();
-      ctx.globalCompositeOperation = 'lighter';
-      switch (fx.fx) {
-        case 'ring': {
-          const r = (this.unit * .16 + k * this.unit * .5);
-          ctx.strokeStyle = hexA(col, (1 - k) * .8);
-          ctx.lineWidth = 3 * (1 - k) + 1;
-          ctx.beginPath(); ctx.ellipse(a.x, a.y, r, r * .45, 0, 0, TAU); ctx.stroke();
-          break;
-        }
-        case 'beam': {
-          const b = project(fx.tx, fx.ty, W, H);
-          const w = (fx.big ? 18 : 9) * (1 - k * .6) * (this.unit / 120);
-          const hx = fx.whiff ? b.x + (b.x - a.x) * .26 : b.x;
-          const hy = fx.whiff ? b.y - this.unit * .18 : b.y - this.unit * .3;
-          // 발사 지점 섬광
-          const g0 = ctx.createRadialGradient(a.x, a.y - this.unit * .3, 0, a.x, a.y - this.unit * .3, this.unit * .22);
-          g0.addColorStop(0, hexA('#ffffff', (1 - k) * .9)); g0.addColorStop(1, hexA(col, 0));
-          ctx.fillStyle = g0; ctx.beginPath(); ctx.arc(a.x, a.y - this.unit * .3, this.unit * .22, 0, TAU); ctx.fill();
-          ctx.strokeStyle = hexA(col, (1 - k) * .9);
-          ctx.shadowColor = col; ctx.shadowBlur = 24;
-          ctx.lineWidth = w;
-          ctx.lineCap = 'round';
-          ctx.beginPath(); ctx.moveTo(a.x, a.y - this.unit * .3); ctx.lineTo(hx, hy); ctx.stroke();
-          ctx.strokeStyle = 'rgba(255,255,255,.92)';
-          ctx.lineWidth = w * .34;
-          ctx.beginPath(); ctx.moveTo(a.x, a.y - this.unit * .3); ctx.lineTo(hx, hy); ctx.stroke();
-          if (!fx.whiff) {
-            const g = ctx.createRadialGradient(hx, hy, 0, hx, hy, this.unit * .26);
-            g.addColorStop(0, hexA('#ffffff', (1 - k) * .95)); g.addColorStop(1, hexA(col, 0));
-            ctx.fillStyle = g; ctx.beginPath(); ctx.arc(hx, hy, this.unit * .26, 0, TAU); ctx.fill();
-          }
-          break;
-        }
-        case 'bolt': {
-          const b = project(fx.tx, fx.ty, W, H);
-          const top = H * .205;
-          ctx.strokeStyle = hexA(col, (1 - k) * .95);
-          ctx.shadowColor = col; ctx.shadowBlur = 30;
-          ctx.lineWidth = (fx.big ? 9 : 5.5) * (1 - k * .55);
-          ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-          const jag = (x0, y0, x1, y1, wob) => {
-            ctx.beginPath();
-            ctx.moveTo(x0, y0);
-            let px = x0, py = y0;
-            const steps = 7;
-            for (let i = 1; i <= steps; i++) {
-              const ny = y0 + (y1 - y0) * (i / steps);
-              const nx = x1 + (i === steps ? 0 : rnd(wob, -wob) * (1 - i / steps));
-              ctx.lineTo(nx, ny);
-              px = nx; py = ny;
-            }
-            ctx.stroke();
-          };
-          jag(b.x - 6, top, b.x, b.y, 26);
-          ctx.lineWidth *= .5;
-          jag(b.x + 10, b.y - this.unit * .9, b.x + this.unit * .35, b.y + 6, 16);
-          jag(b.x - 12, b.y - this.unit * .7, b.x - this.unit * .3, b.y + 2, 14);
-          // 임팩트 섬광
-          const g = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, this.unit * .34);
-          g.addColorStop(0, hexA('#ffffff', (1 - k) * .95));
-          g.addColorStop(.4, hexA(col, (1 - k) * .65));
-          g.addColorStop(1, hexA(col, 0));
-          ctx.fillStyle = g;
-          ctx.beginPath(); ctx.arc(b.x, b.y, this.unit * .34, 0, TAU); ctx.fill();
-          break;
-        }
-        case 'pillar': {
-          const b = project(fx.tx, fx.ty, W, H);
-          const top = b.y - H * .34;
-          const g = ctx.createLinearGradient(0, top, 0, b.y);
-          g.addColorStop(0, hexA(col, 0));
-          g.addColorStop(.55, hexA(col, (1 - k) * .22));
-          g.addColorStop(.88, hexA(col, (1 - k) * .5));
-          g.addColorStop(1, hexA(col, (1 - k) * .12));
-          ctx.fillStyle = g;
-          const pw = (fx.big ? 30 : 18) * (this.unit / 120) * (1 - k * .45);
-          ctx.beginPath();
-          ctx.moveTo(b.x - pw * .35, top);
-          ctx.lineTo(b.x + pw * .35, top);
-          ctx.lineTo(b.x + pw, b.y);
-          ctx.lineTo(b.x - pw, b.y);
-          ctx.closePath();
-          ctx.fill();
-          break;
-        }
-        case 'zone': {
-          // sim zone에서 그림 (여기서는 진입 섬광만)
-          if (k < .25) {
-            ctx.strokeStyle = hexA(col, (1 - k / .25) * .9);
-            ctx.lineWidth = 3;
-            ctx.beginPath(); ctx.ellipse(a.x, a.y, fx.r * W * .92, fx.r * H * .55, 0, 0, TAU); ctx.stroke();
-          }
-          break;
-        }
-        case 'stream': {
-          const b = project(fx.tx, fx.ty, W, H);
-          if (k < .5) {
-            for (let i = 0; i < 9; i++) {
-              const tt = rnd(1);
-              ctx.fillStyle = hexA(col, (1 - k) * .6);
-              ctx.beginPath();
-              ctx.arc(a.x + (b.x - a.x) * tt, a.y - this.unit * .3 + (b.y - a.y) * tt + rnd(16, -16), 3 + rnd(4), 0, TAU);
-              ctx.fill();
-            }
-          }
-          break;
-        }
-        case 'wave': {
-          const b = project(fx.tx, fx.ty, W, H);
-          const r = this.unit * .1 + k * this.unit * .55;
-          ctx.strokeStyle = hexA(col, (1 - k) * .8);
-          ctx.lineWidth = 4 * (1 - k) + 1;
-          ctx.beginPath(); ctx.ellipse(b.x, b.y, r, r * .5, 0, 0, TAU); ctx.stroke();
-          ctx.strokeStyle = 'rgba(255,255,255,' + (1 - k) * .5 + ')';
-          ctx.beginPath(); ctx.ellipse(b.x, b.y, r * .7, r * .35, 0, 0, TAU); ctx.stroke();
-          break;
-        }
-        case 'bite': {
-          const b = project(fx.tx, fx.ty, W, H);
-          if (k < .4) {
-            const sc = this.unit * .2 * (1 + k * .6);
-            ctx.fillStyle = hexA('#ffffff', (1 - k / .4) * .9);
-            ctx.shadowColor = col; ctx.shadowBlur = 16;
-            for (const s2 of [-1, 1]) {
-              ctx.beginPath();
-              ctx.moveTo(b.x - sc, b.y - this.unit * .28 + s2 * sc * .5);
-              ctx.lineTo(b.x + sc * .2, b.y - this.unit * .28 + s2 * sc * .1);
-              ctx.lineTo(b.x - sc * .2, b.y - this.unit * .28 + s2 * sc * .9);
-              ctx.closePath(); ctx.fill();
-            }
-          }
-          break;
-        }
-        case 'slash':
-        case 'rush': {
-          const b = project(fx.tx, fx.ty, W, H);
-          if (k < .45) {
-            ctx.strokeStyle = hexA('#ffffff', (1 - k / .45) * .9);
-            ctx.shadowColor = col; ctx.shadowBlur = 18;
-            ctx.lineWidth = 3.4;
-            for (let i = 0; i < 3; i++) {
-              const off = (i - 1) * 12;
-              ctx.beginPath();
-              ctx.arc(b.x, b.y - this.unit * .3, this.unit * .17 + off * .3, -1.1 + i * .2, 1.1 + i * .2);
-              ctx.stroke();
-            }
-          }
-          break;
-        }
-        case 'burst': {
-          const b = project(fx.tx, fx.ty, W, H);
-          if (k < .3) {
-            const g = ctx.createRadialGradient(b.x, b.y - 20, 0, b.x, b.y - 20, this.unit * .5 * (1 + k));
-            g.addColorStop(0, 'rgba(255,255,255,.9)');
-            g.addColorStop(.4, hexA(col, .6 * (1 - k / .3)));
-            g.addColorStop(1, hexA(col, 0));
-            ctx.fillStyle = g;
-            ctx.beginPath(); ctx.arc(b.x, b.y - 20, this.unit * .6, 0, TAU); ctx.fill();
-          }
-          break;
-        }
-        case 'shadow': {
-          const b = project(fx.tx, fx.ty, W, H);
-          ctx.fillStyle = hexA('#1a1030', (1 - k) * .8);
-          ctx.beginPath(); ctx.ellipse(b.x, b.y - this.unit * .3, this.unit * .24 * (1 + k), this.unit * .2 * (1 + k), 0, 0, TAU); ctx.fill();
-          break;
-        }
-        case 'cage': {
-          const b = project(fx.tx, fx.ty, W, H);
-          ctx.strokeStyle = hexA(col, (1 - k) * .85);
-          ctx.lineWidth = 2;
-          for (let i = 0; i < 5; i++) {
-            const ang = (i / 5) * TAU + t;
-            const r = this.unit * .3;
-            ctx.beginPath();
-            ctx.moveTo(b.x + Math.cos(ang) * r, b.y + Math.sin(ang) * r * .45);
-            ctx.lineTo(b.x + Math.cos(ang) * r, b.y - this.unit * .4);
-            ctx.stroke();
-          }
-          ctx.beginPath(); ctx.ellipse(b.x, b.y, this.unit * .3, this.unit * .14, 0, 0, TAU); ctx.stroke();
-          break;
-        }
-        case 'status': {
-          const b = project(fx.tx, fx.ty, W, H);
-          ctx.fillStyle = hexA(col, (1 - k) * .5);
-          for (let i = 0; i < 8; i++) {
-            ctx.beginPath(); ctx.arc(b.x + rnd(24, -24), b.y - rnd(40, 0), 3 + rnd(3), 0, TAU); ctx.fill();
-          }
-          break;
-        }
-        default: break;
-      }
-      ctx.restore();
+      // 시전 중 파티클 (물줄기·화염·결정 등)
+      emitCastParticles(this.parts, fx, k, cam);
+      drawCast(ctx, fx, k, cam);
       keep.push(fx);
     }
     this.fxList = keep;
   }
 
+
   _drawParts(ctx, dt) {
     const keep = [];
+    const ts = this.sceneT / 1000;
     for (const p of this.parts) {
       p.life -= dt;
       if (p.life <= 0) continue;
+      if (p.wob) p.vx += Math.sin((p.life * 9) + p.size) * p.wob * dt * .6;
       p.x += p.vx * dt; p.y += p.vy * dt;
-      p.vy += 320 * dt;
-      p.vx *= .96; p.vy *= .97;
+      p.vy += 320 * (p.grav === undefined ? 1 : p.grav) * dt;
+      const drag = p.drag === undefined ? .96 : p.drag;
+      p.vx *= drag; p.vy *= Math.min(.995, drag + .02);
+      if (p.vr) p.rot = (p.rot || 0) + p.vr * dt;
       const a = clamp(p.life / p.max, 0, 1);
       ctx.save();
       ctx.globalAlpha = a;
-      ctx.fillStyle = p.color;
-      ctx.shadowColor = p.color;
-      ctx.shadowBlur = 8;
-      if (p.type === 'spark') {
-        ctx.strokeStyle = p.color;
-        ctx.lineWidth = p.size * .5;
-        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.vx * .04, p.y - p.vy * .04); ctx.stroke();
-      } else if (p.type === 'line') {
-        ctx.strokeStyle = p.color;
-        ctx.lineWidth = p.size * .5;
-        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.vx * .03, p.y - p.vy * .02); ctx.stroke();
-      } else {
-        ctx.beginPath(); ctx.arc(p.x, p.y, p.size * a, 0, TAU); ctx.fill();
-      }
+      drawParticle(ctx, p, a, ts);
       ctx.restore();
       keep.push(p);
     }
-    this.parts = keep.length > 420 ? keep.slice(keep.length - 420) : keep;
+    this.parts = keep.length > 760 ? keep.slice(keep.length - 760) : keep;
   }
 
   _drawTexts(ctx, dt) {
@@ -1093,12 +945,12 @@ export class BattleUI {
   }
 
   _castLine(who, text) {
-    if (!this.el.castLines.querySelector('.cast-empty')) { /* ok */ }
     const empty = this.el.castLines.querySelector('.cast-empty');
     if (empty) empty.remove();
+    const whoInfo = who === 'caster' ? CAST_TEAM.caster : CAST_TEAM.analyst;
     const d = document.createElement('div');
     d.className = `cast-line ${who}`;
-    d.innerHTML = `<i>${who === 'caster' ? CAST_TEAM.caster.emoji : CAST_TEAM.analyst.emoji}</i><span>${text}</span>`;
+    d.innerHTML = `<i>${whoInfo.emoji}</i><b class="cw">${whoInfo.name}</b><span>${text}</span>`;
     this.el.castLines.appendChild(d);
     const kids = [...this.el.castLines.children];
     while (kids.length > 2) { kids.shift().remove(); }
@@ -1191,6 +1043,9 @@ export class BattleUI {
       casts: b ? b.castCount : 0, dodges: b ? b.dodgeCount : 0, hits: b ? b.hitCount : 0,
       proj: b ? b.projectiles.length : 0, zones: b ? b.zones.length : 0,
       castLines: this.el.castLines.querySelectorAll('.cast-line').length,
+      speed: this.speed,
+      simScale: +(this.speed * SPEED_BASE).toFixed(3),
+      hitFx: b ? b.all.filter((f) => f.hitFx).map((f) => f.hitFx.type) : [],
       banner: this.el.banner.textContent,
       result: b && b.result ? { winner: b.result.winner, dur: +b.result.duration.toFixed(2), mvp: b.result.mvp.name } : null,
       W: this.cvW, H: this.cvH, unit: Math.round(this.unit),

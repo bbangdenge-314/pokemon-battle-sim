@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>기믹 갤러리 · Arena FX</title>
+<style>
+  html,body{margin:0;background:#080b14;color:#dfe7fb;font-family:system-ui,sans-serif;overflow:hidden}
+  #wrap{position:relative;width:100vw;height:100vh}
+  canvas{position:absolute;inset:0;width:100%;height:100%}
+  #lbl{position:absolute;left:16px;top:12px;font-size:14px;font-weight:800;letter-spacing:.04em;color:#9fb0d8;z-index:3}
+  #hint{position:absolute;left:16px;bottom:12px;font-size:12px;color:#66739a;z-index:3}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="cv"></canvas>
+  <div id="lbl">ready</div>
+  <div id="hint">window.play(name) · leaf / water / thunder / fire / ice / psychic / shadow / quake / melee</div>
+</div>
+<script type="module">
+import { project } from '../js/arena-scenes.js';
+import {
+  drawProjectile, drawCast, drawHitState, drawZoneDecor, emitCastParticles,
+  impactBurst, emitLeaves, emitWater, emitSpark, emitEmber, emitFrost, emitWisp, emitPoison, emitDust, drawParticle
+} from '../js/fx-arena.js';
+
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const lbl = document.getElementById('lbl');
+let W = 0, H = 0, dpr = 1;
+function resize() {
+  dpr = Math.min(2, devicePixelRatio || 1);
+  W = cv.clientWidth; H = cv.clientHeight;
+  cv.width = W * dpr; cv.height = H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+addEventListener('resize', resize);
+
+const state = { t: 0, fx: [], parts: [], proj: [], hits: [], mode: 'leaf', clock: 0 };
+const cam = { W: 0, H: 0, unit: 0, small: false, project, t: 0 };
+
+const FIGHTERS = [
+  { x: .26, y: .74, side: 'A', body: '#4aa8f0', label: 'A' },
+  { x: .74, y: .5, side: 'B', body: '#ff8a5c', label: 'B' }
+];
+
+function fighterArt(f) {
+  const p = project(f.x, f.y, W, H);
+  const h = cam.unit * p.s;
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  ctx.fillStyle = 'rgba(0,0,0,.35)';
+  ctx.beginPath(); ctx.ellipse(0, 0, h * .26, h * .075, 0, 0, Math.PI * 2); ctx.fill();
+  const g = ctx.createRadialGradient(0, -h * .4, 0, 0, -h * .4, h * .38);
+  g.addColorStop(0, f.body); g.addColorStop(1, '#0b1020');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.ellipse(0, -h * .4, h * .3, h * .4, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  return { p, h };
+}
+
+function addFx(o) { state.fx.push({ t: 0, dur: .6, ...o }); }
+
+function play(name) {
+  state.mode = name; state.t = 0; state.fx = []; state.parts = []; state.proj = []; state.hits = [];
+  lbl.textContent = name;
+  const A = FIGHTERS[0], B = FIGHTERS[1];
+  const p = project(A.x, A.y, W, H), q = project(B.x, B.y, W, H);
+  switch (name) {
+    case 'leaf': {
+      for (let i = 0; i < 5; i++) {
+        state.proj.push({
+          x: A.x, y: A.y, vx: .55, vy: -.16 + i * .07, spec: { shape: 'leaf', color: '#5fc24a', second: '#d9ffcf', kind: 'volley' },
+          move: { t: '풀' }, _delay: i * .12, life: 2
+        });
+      }
+      break;
+    }
+    case 'leafslash':
+      addFx({ fx: 'slash', kind: 'slash', shape: 'leaf', type: '풀', color: '#5fc24a', second: '#eaffdf', x: A.x, y: A.y, tx: B.x, ty: B.y, dur: .5 });
+      state.hits.push({ f: B, t: 0, type: '풀', color: '#5fc24a' });
+      emitLeaves(state.parts, q.x, q.y - cam.unit * .3, 0, Math.PI, 18, '#5fc24a', '#eaffdf', 240, 9);
+      break;
+    case 'water':
+      addFx({ fx: 'stream', kind: 'stream', shape: 'water', type: '물', color: '#2f8fe6', second: '#c8ecff', x: A.x, y: A.y, tx: B.x, ty: B.y, dur: .75, big: true });
+      break;
+    case 'thunder':
+      addFx({ fx: 'bolt', kind: 'bolt', type: '전기', color: '#ffd93b', second: '#fffbe0', x: B.x, y: B.y, tx: B.x, ty: B.y, dur: .7, big: true });
+      state.hits.push({ f: B, t: 0, type: '전기', color: '#ffd93b' });
+      break;
+    case 'fire':
+      addFx({ fx: 'stream', kind: 'stream', shape: 'flame', type: '불꽃', color: '#ff6a2b', second: '#ffd166', x: A.x, y: A.y, tx: B.x, ty: B.y, dur: .8, big: true });
+      state.hits.push({ f: B, t: 0, type: '불꽃', color: '#ff6a2b' });
+      break;
+    case 'ice':
+      addFx({ fx: 'beam', kind: 'beam', shape: 'ice', type: '얼음', color: '#66d9e8', second: '#ffffff', x: A.x, y: A.y, tx: B.x, ty: B.y, dur: .7, big: true });
+      state.hits.push({ f: B, t: 0, type: '얼음', color: '#66d9e8' });
+      break;
+    case 'psychic':
+      addFx({ fx: 'wave', kind: 'wave', shape: 'orb', type: '에스퍼', color: '#ff6fae', second: '#ffd8ea', x: B.x, y: B.y, tx: B.x, ty: B.y, dur: .8 });
+      state.hits.push({ f: B, t: 0, type: '에스퍼', color: '#ff6fae' });
+      break;
+    case 'shadow':
+      addFx({ fx: 'burst', kind: 'burst', shape: 'shadow', type: '고스트', color: '#7a5fd8', second: '#d8ccff', x: B.x, y: B.y, tx: B.x, ty: B.y, dur: .7, big: true });
+      state.hits.push({ f: B, t: 0, type: '고스트', color: '#7a5fd8' });
+      break;
+    case 'quake':
+      addFx({ fx: 'zone', kind: 'quake', type: '땅', color: '#c9a06a', second: '#f0e6dc', x: B.x, y: B.y, r: .26, dur: .5 });
+      impactBurst(state.parts, q.x, q.y, '땅', '#c9a06a', true, 1.2);
+      break;
+    case 'melee':
+      addFx({ fx: 'rush', kind: 'rush', shape: 'spark', type: '전기', color: '#ffd93b', second: '#fffbe0', x: A.x, y: A.y, tx: B.x, ty: B.y, dur: .45 });
+      state.hits.push({ f: B, t: 0, type: '전기', color: '#ffd93b' });
+      break;
+  }
+}
+window.play = play;
+// 특정 시점으로 고정해서 스크린샷 (연출 평가용)
+window.snap = (name, tTarget = .25) => {
+  play(name);
+  state.frozen = false;
+  let acc = 0;
+  while (acc < tTarget) { frame(1 / 60); acc += 1 / 60; }
+  state.frozen = true;
+  lbl.textContent = name + ' @' + tTarget.toFixed(2) + 's';
+};
+
+function frame(dt) {
+  state.clock += dt;
+  cam.W = W; cam.H = H; cam.unit = Math.max(90, Math.min(W * .15, H * .22)); cam.t = state.clock;
+  ctx.clearRect(0, 0, W, H);
+  // 바닥
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#101a2e'); g.addColorStop(1, '#1b2a1e');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = 'rgba(255,255,255,.05)';
+  for (let i = 0; i < 8; i++) { ctx.beginPath(); ctx.moveTo(0, H * .25 + i * H * .1); ctx.lineTo(W, H * .25 + i * H * .1); ctx.stroke(); }
+
+  for (const f of FIGHTERS) fighterArt(f);
+
+  // 투사체
+  for (const pr of state.proj) {
+    if (pr._delay > 0) { pr._delay -= dt; continue; }
+    pr.x += pr.vx * dt; pr.y += pr.vy * dt; pr.life -= dt;
+    drawProjectile(ctx, pr, cam);
+    if (Math.random() < .25) emitLeaves(state.parts, project(pr.x, pr.y, W, H).x, project(pr.x, pr.y, W, H).y, Math.PI, .6, 1, '#5fc24a', '#eaffdf', 40, 5);
+  }
+  state.proj = state.proj.filter(p => p.life > 0 && p.x < 1.05);
+
+  // 이펙트
+  const keep = [];
+  for (const fx of state.fx) {
+    fx.t += dt; const k = fx.t / fx.dur;
+    if (k >= 1) continue;
+    emitCastParticles(state.parts, fx, k, cam);
+    drawCast(ctx, fx, k, cam);
+    keep.push(fx);
+  }
+  state.fx = keep;
+
+  // 피격 상태
+  for (const h of state.hits) {
+    h.t += dt;
+    const f = h.f;
+    const pr = project(f.x, f.y, W, H);
+    const hh = cam.unit * pr.s;
+    drawHitState(ctx, {
+      hitFx: { type: h.type, t: h.t, dur: .8, color: h.color, second: '#ffffff' },
+      status: null, alive: true
+    }, cam, pr.x, pr.y, hh, 0, state.clock);
+  }
+
+  // 입자
+  for (const p of state.parts) {
+    p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt;
+    p.vy += 320 * (p.grav === undefined ? 1 : p.grav) * dt;
+    const drag = p.drag === undefined ? .96 : p.drag;
+    p.vx *= drag; p.vy *= Math.min(.995, drag + .02);
+    if (p.vr) p.rot = (p.rot || 0) + p.vr * dt;
+    const a = Math.max(0, Math.min(1, p.life / p.max));
+    ctx.save();
+    drawParticle(ctx, p, a, state.clock);
+    ctx.restore();
+  }
+  state.parts = state.parts.filter(p => p.life > 0);
+}
+
+resize();
+play('leaf');
+let last = performance.now();
+function loop(ts) {
+  const dt = Math.min(.05, (ts - last) / 1000); last = ts;
+  if (!state.frozen) {
+    try { frame(dt); } catch (e) { lbl.textContent = 'ERR ' + e.message + ' @ ' + (e.stack || '').split('\n')[1]; }
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

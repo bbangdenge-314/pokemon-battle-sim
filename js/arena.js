@@ -463,7 +463,7 @@ export class ArenaBattle {
         this._clampPos(f);
       }
       f.lungeT = .22;
-      this.events.push({ t: 'fx', fx: prof.kind === 'bite' ? 'bite' : 'rush', color: spec.color, x: f.x, y: f.y, tx: target ? target.x : f.x, ty: target ? target.y : f.y, kind: prof.kind, big: spec.big });
+      this.events.push({ t: 'fx', fx: prof.kind === 'bite' ? 'bite' : 'rush', color: spec.color, second: spec.second, shape: spec.shape, trail: spec.trail, type: mv.t, x: f.x, y: f.y, tx: target ? target.x : f.x, ty: target ? target.y : f.y, kind: prof.kind, big: spec.big });
       const justDodged = target && target.dodgeStamp && (this.time - target.dodgeStamp) < .5;
       if (!target || d > prof.range * 1.8 || justDodged) {
         if (target) this.events.push({ t: 'miss', side: target.side, idx: target.slot, moveName: mv.n, x: target.x, y: target.y, reason: 'dodge' });
@@ -483,13 +483,13 @@ export class ArenaBattle {
 
     if (BEAM_KINDS.includes(prof.kind)) {
       if (target && this._tryDodge(target, mv, f.x, f.y, prof.kind === 'stream' ? .55 : .9)) {
-        this.events.push({ t: 'fx', fx: prof.kind, color: spec.color, big: spec.big, x: f.x, y: f.y, tx: target.x, ty: target.y, kind: prof.kind, whiff: true });
+        this.events.push({ t: 'fx', fx: prof.kind, color: spec.color, second: spec.second, shape: spec.shape, type: mv.t, big: spec.big, x: f.x, y: f.y, tx: target.x, ty: target.y, kind: prof.kind, whiff: true });
         this.events.push({ t: 'miss', side: target.side, idx: target.slot, moveName: mv.n, x: target.x, y: target.y, reason: 'dodge' });
         return;
       }
       const tx = target ? target.x : f.x + f.face * .2;
       const ty = target ? target.y : f.y;
-      this.events.push({ t: 'fx', fx: prof.kind, color: spec.color, big: spec.big, x: f.x, y: f.y, tx, ty, kind: prof.kind });
+      this.events.push({ t: 'fx', fx: prof.kind, color: spec.color, second: spec.second, shape: spec.shape, type: mv.t, big: spec.big, x: f.x, y: f.y, tx, ty, kind: prof.kind });
       if (target) {
         const d = this.dist(f, target);
         if (d > prof.range * 1.6) {
@@ -528,7 +528,7 @@ export class ArenaBattle {
       r: spec.big ? .042 : .032, dodged: false, trailT: 0,
       homing: spec.kind === 'volley' ? 0 : .16
     });
-    this.events.push({ t: 'fx', fx: 'muzzle', color: spec.color, x: f.x, y: f.y, kind: spec.kind, big: spec.big });
+    this.events.push({ t: 'fx', fx: 'muzzle', color: spec.color, second: spec.second, shape: spec.shape, type: mv.t, x: f.x, y: f.y, kind: spec.kind, big: spec.big });
   }
 
   _updateProjectiles(dt) {
@@ -581,7 +581,7 @@ export class ArenaBattle {
       this.events.push({ t: 'miss', side: def.side, idx: def.slot, moveName: mv.n, x: def.x, y: def.y, reason: 'acc' });
       return;
     }
-    this.events.push({ t: 'fx', fx: 'impact', color: p.spec.color, x: p.x, y: p.y, kind: p.spec.kind });
+    this.events.push({ t: 'fx', fx: 'impact', color: p.spec.color, second: p.spec.second, shape: p.spec.shape, type: mv.t, x: p.x, y: p.y, kind: p.spec.kind, big: p.spec.big });
     this._strike(p.owner, def, mv, ef);
   }
 
@@ -653,7 +653,7 @@ export class ArenaBattle {
       if (o.alive && this.dist(o, z) < r) { z.inside.add(o); o._zoneEscaped = false; }
     }
     this.zones.push(z);
-    this.events.push({ t: 'fx', fx: 'zone', color: spec.color, x: z.x, y: z.y, r, dur: tell, kind: prof.kind });
+    this.events.push({ t: 'fx', fx: 'zone', color: spec.color, second: spec.second, shape: spec.shape, type: mv.t, x: z.x, y: z.y, r, dur: tell, kind: prof.kind });
   }
 
   _updateZones(dt) {
@@ -690,7 +690,7 @@ export class ArenaBattle {
       o.lastHitBy = z.owner;
       this.events.push({ t: 'hit', aSide: z.side, aIdx: z.owner.slot, side: o.side, idx: o.slot, amount: Math.round(before - o.hp), hp: o.hp, maxHp: o.maxHp, eff: r.eff, crit: false, moveId: z.move.id, moveName: z.move.n, type: z.move.t, x: o.x, y: o.y, zone: true });
     }
-    this.events.push({ t: 'fx', fx: 'zonehit', color: z.spec.color, x: z.x, y: z.y, r: z.r, kind: z.kind });
+    this.events.push({ t: 'fx', fx: 'zonehit', color: z.spec.color, second: z.spec.second, shape: z.spec.shape, type: z.move.t, x: z.x, y: z.y, r: z.r, kind: z.kind });
   }
 
   /* ---------------- 변화기 ---------------- */

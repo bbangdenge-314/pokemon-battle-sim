@@ -7,7 +7,7 @@
 <title>포켓몬 배틀 시뮬레이터 · Pokémon Battle Simulator</title>
 <meta name="description" content="1~9세대 1,025마리 포켓몬이 2.5D 아레나를 뛰어다니며 실시간으로 난투하는 배틀 시뮬레이터. 최대 6마리 동시 출격, 회피·말풍선·캐스터 중계, 11개 아레나, 5가지 날씨.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='46' fill='%23fff' stroke='%230b1020' stroke-width='8'/><path d='M4 50h92' stroke='%230b1020' stroke-width='10'/><circle cx='50' cy='50' r='15' fill='%23ef4444' stroke='%230b1020' stroke-width='6'/></svg>">
-<link rel="stylesheet" href="css/style.css?v=20261120">
+<link rel="stylesheet" href="css/style.css?v=20261120c">
 </head>
 <body>
 <div id="app">
@@ -163,7 +163,7 @@
             <div class="winrate" id="winRate"></div>
             <div class="type-analysis" id="typeAnalysis"></div>
             <button class="btn btn-primary btn-lg" id="startBattle">전투 시작! <span class="arrow">⚔</span></button>
-            <p class="tiny">실시간 아레나 난투 · 배속 1x/2x/3x · 일시정지 지원</p>
+            <p class="tiny">실시간 아레나 난투 · 배속 0.5x · 0.75x · 1x · 1.5x · 2x · 3x · 일시정지 지원</p>
           </div>
         </div>
       </section>
@@ -203,10 +203,13 @@
           <div class="turn-chip" id="turnChip">00:00</div>
           <div class="mode-chip" id="modeChip">1 : 1 난투</div>
           <div class="battle-tools">
-            <div class="speed-group" id="speedGroup">
-              <button data-speed="1" class="on">1x</button>
-              <button data-speed="2">2x</button>
-              <button data-speed="3">3x</button>
+            <div class="speed-group" id="speedGroup" role="group" aria-label="전투 속도">
+              <button data-speed="0.5" title="아주 천천히">0.5x</button>
+              <button data-speed="0.75" title="천천히">0.75x</button>
+              <button data-speed="1" class="on" title="기본">1x</button>
+              <button data-speed="1.5" title="빠르게">1.5x</button>
+              <button data-speed="2" title="매우 빠르게">2x</button>
+              <button data-speed="3" title="최고 속도">3x</button>
             </div>
             <button class="tool-btn" id="pauseBtn" title="일시정지">⏸</button>
           </div>
@@ -282,6 +285,6 @@
   <div class="toast" id="toast"></div>
 </div>
 
-<script type="module" src="js/main.js?v=20261120"></script>
+<script type="module" src="js/main.js?v=20261120c"></script>
 </body>
 </html>
