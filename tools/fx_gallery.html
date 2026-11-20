@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>FX Gallery</title>
+<style>
+  html,body{margin:0;background:#0a0d18;color:#fff;font-family:sans-serif;overflow:hidden}
+  #wrap{position:relative;width:1000px;height:560px;margin:0 auto;background:radial-gradient(circle at 50% 40%, #1b2340, #070a14);}
+  canvas{position:absolute;inset:0;width:100%;height:100%}
+  .mon{position:absolute;width:150px;height:150px;border-radius:50%;border:2px solid rgba(255,255,255,.25);background:rgba(120,160,255,.15);bottom:110px}
+  #a{left:110px} #b{right:110px}
+  .lbl{position:absolute;bottom:20px;left:0;right:0;text-align:center;font-size:14px;color:#9fb0d8}
+  #sel{position:absolute;top:8px;left:8px;z-index:5;background:#111a30;color:#fff;border:1px solid #334;padding:6px;border-radius:8px}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="fx"></canvas>
+  <div class="mon" id="a"></div>
+  <div class="mon" id="b"></div>
+  <select id="sel"></select>
+  <div class="lbl" id="lbl">ready</div>
+</div>
+<script type="module">
+import { FX } from '../js/fx.js';
+import { DATA } from '../js/data.js';
+const fx = new FX(document.getElementById('fx'));
+const sel = document.getElementById('sel');
+const lbl = document.getElementById('lbl');
+const ids = Object.keys(DATA.moves);
+ids.sort((x,y)=>DATA.moves[x].n.localeCompare(DATA.moves[y].n,'ko'));
+ids.forEach(id=>{ const o=document.createElement('option'); o.value=id; o.textContent=`${DATA.moves[id].n} (${DATA.moves[id].t}/${DATA.moves[id].c})`; sel.appendChild(o); });
+const pos = (id)=>{ const r=document.getElementById(id).getBoundingClientRect(); return {x:r.left+r.width/2, y:r.top+r.height/2}; };
+window.castMove = async (mid, speed=1) => {
+  const mv = DATA.moves[String(mid)];
+  sel.value = String(mid);
+  lbl.textContent = mv.n + ' casting…';
+  const r = await fx.cast(mv, pos('a').x?pos('a'):{x:200,y:300}, pos('b').x?pos('b'):{x:800,y:300}, { speed: ()=>speed, onImpact:()=>{ lbl.textContent = mv.n + ' IMPACT'; window.__impacted = (window.__impacted||0)+1; } });
+  lbl.textContent = mv.n + ' done';
+};
+window.castByName = (name, speed=1) => {
+  const id = ids.find(i=>DATA.moves[i].n===name) || ids.find(i=>DATA.moves[i].en===name);
+  if(!id) { lbl.textContent='not found: '+name; return 'not found'; }
+  return window.castMove(Number(id), speed);
+};
+window.ready = true;
+</script>
+</body>
+</html>

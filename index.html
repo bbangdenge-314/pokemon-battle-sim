@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#080b17">
+<title>포켓몬 배틀 시뮬레이터 · Pokémon Battle Simulator</title>
+<meta name="description" content="1~9세대 1,025마리 포켓몬이 실제 기술과 타입 상성으로 싸우는 오토 배틀 시뮬레이터. 11개 배경, 5가지 날씨, 화려한 기술 연출.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='46' fill='%23fff' stroke='%230b1020' stroke-width='8'/><path d='M4 50h92' stroke='%230b1020' stroke-width='10'/><circle cx='50' cy='50' r='15' fill='%23ef4444' stroke='%230b1020' stroke-width='6'/></svg>">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+  <!-- ================= 인트로 ================= -->
+  <section id="screenIntro" class="screen active">
+    <canvas id="heroCanvas" class="hero-canvas"></canvas>
+    <div class="hero-veil"></div>
+    <div class="hero-content">
+      <div class="hero-badge">⚡ 1~9세대 · 전국도감 1,025마리</div>
+      <h1 class="hero-title">포켓몬 <span>배틀</span> 시뮬레이터</h1>
+      <p class="hero-sub">실제 기술과 타입 상성, 날씨까지 반영한 오토 배틀.<br>장소를 고르고 팀을 짜면, 승부는 알아서 펼쳐집니다.</p>
+      <div class="hero-actions">
+        <button id="startBtn" class="btn btn-primary btn-xl">배틀 시작 <span class="arrow">→</span></button>
+        <button id="quickBtn" class="btn btn-ghost btn-xl">🎲 랜덤 배틀 바로 시작</button>
+      </div>
+      <div class="hero-feats">
+        <div class="feat"><b>1,025</b><span>포켓몬</span></div>
+        <div class="feat"><b>11</b><span>배틀 장소</span></div>
+        <div class="feat"><b>5</b><span>날씨</span></div>
+        <div class="feat"><b>228</b><span>실제 기술 연출</span></div>
+      </div>
+    </div>
+    <div class="hero-scroll">Lv.50 · 실제 기술 · 오토 배틀</div>
+  </section>
+
+  <!-- ================= 설정 ================= -->
+  <section id="screenSetup" class="screen">
+    <header class="setup-head">
+      <button class="brand" id="brandHome" aria-label="처음으로">
+        <span class="ball"></span><b>배틀 시뮬레이터</b>
+      </button>
+      <nav class="stepper" id="stepper">
+        <button class="step-btn active" data-step="0"><i>1</i><span>대결 방식</span></button>
+        <button class="step-btn" data-step="1"><i>2</i><span>장소</span></button>
+        <button class="step-btn" data-step="2"><i>3</i><span>날씨</span></button>
+        <button class="step-btn" data-step="3"><i>4</i><span>포켓몬</span></button>
+        <button class="step-btn" data-step="4"><i>5</i><span>프리뷰</span></button>
+      </nav>
+      <button class="icon-btn" id="soundBtn" aria-label="소리 켜기/끄기" title="소리">🔊</button>
+    </header>
+
+    <main class="setup-body">
+      <!-- STEP 1 -->
+      <section class="panel step-panel" id="stepMode">
+        <div class="panel-head">
+          <span class="kicker">STEP 1</span>
+          <h2>어떤 방식으로 싸울까요?</h2>
+          <p>팀 규모를 정하면 포켓몬 선택 칸이 맞춰집니다. 한 마리가 쓰러지면 다음 포켓몬이 자동으로 나옵니다.</p>
+        </div>
+        <div class="mode-grid">
+          <button class="mode-card" data-mode="1">
+            <div class="mode-art"><span class="mode-num">1</span><span class="mode-vs">vs</span><span class="mode-num">1</span></div>
+            <h3>1 대 1</h3>
+            <p>단 한 마리로 승부. 상성과 한 방에 모든 것이 걸린 긴장감.</p>
+            <span class="pick-tag">추천 · 빠른 승부</span>
+          </button>
+          <button class="mode-card" data-mode="2">
+            <div class="mode-art"><span class="mode-num">2</span><span class="mode-vs">vs</span><span class="mode-num">2</span></div>
+            <h3>2 대 2</h3>
+            <p>교체의 흐름을 읽는 재미. 두 번째 카드로 판을 뒤집어 보세요.</p>
+            <span class="pick-tag">균형</span>
+          </button>
+          <button class="mode-card" data-mode="3">
+            <div class="mode-art"><span class="mode-num">3</span><span class="mode-vs">vs</span><span class="mode-num">3</span></div>
+            <h3>3 대 3</h3>
+            <p>풀 팀 배틀. 3마리의 조합과 엔트리 순서가 승패를 가릅니다.</p>
+            <span class="pick-tag">추천 · 진검승부</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- STEP 2 -->
+      <section class="panel step-panel" id="stepStage">
+        <div class="panel-head">
+          <span class="kicker">STEP 2</span>
+          <h2>어디에서 싸울까요?</h2>
+          <p>장소마다 분위기와 움직이는 배경 요소가 다릅니다. 선택한 장소가 배틀 화면에 그대로 그려집니다.</p>
+        </div>
+        <div class="stage-grid" id="stageGrid"></div>
+      </section>
+
+      <!-- STEP 3 -->
+      <section class="panel step-panel" id="stepWeather">
+        <div class="panel-head">
+          <span class="kicker">STEP 3</span>
+          <h2>날씨는 어떤가요?</h2>
+          <p>날씨는 연출뿐 아니라 실제 배틀 위력과 턴 데미지에도 반영됩니다.</p>
+        </div>
+        <div class="weather-wrap">
+          <div class="weather-grid" id="weatherGrid"></div>
+          <div class="weather-preview">
+            <canvas id="weatherPreview"></canvas>
+            <div class="wp-label" id="wpLabel">맑음 · 특별한 보정 없음</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- STEP 4 -->
+      <section class="panel step-panel" id="stepPick">
+        <div class="panel-head">
+          <span class="kicker">STEP 4</span>
+          <h2>포켓몬을 골라주세요</h2>
+          <p>레벨은 <b>모두 Lv.50</b>으로 통일됩니다. 검색·세대·타입 필터로 1,025마리 중에서 고르세요.</p>
+        </div>
+        <div class="pick-toolbar">
+          <div class="pick-count" id="pickCount">내 팀 0 / 1</div>
+          <div class="pick-actions">
+            <button class="btn btn-ghost sm" id="randomBoth">🎲 랜덤 팀 채우기</button>
+            <button class="btn btn-ghost sm" id="clearBoth">전체 비우기</button>
+          </div>
+        </div>
+        <div class="team-board">
+          <div class="team-panel team-a">
+            <div class="team-head"><span class="dot"></span><b>내 팀</b><span class="team-sub">PLAYER</span>
+              <button class="mini-btn" id="randomA" title="내 팀 랜덤">🎲</button>
+            </div>
+            <div class="slots" id="teamA"></div>
+          </div>
+          <div class="vs-divider"><span>VS</span></div>
+          <div class="team-panel team-b">
+            <div class="team-head"><span class="dot"></span><b>상대 팀</b><span class="team-sub">RIVAL</span>
+              <button class="mini-btn" id="randomB" title="상대 팀 랜덤">🎲</button>
+            </div>
+            <div class="slots" id="teamB"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- STEP 5 -->
+      <section class="panel step-panel" id="stepPreview">
+        <div class="panel-head row">
+          <div>
+            <span class="kicker">STEP 5</span>
+            <h2>전투 준비 완료</h2>
+            <p id="previewSummary">양 팀의 능력치와 상성을 비교해 보세요.</p>
+          </div>
+          <div class="preview-meta" id="previewMeta"></div>
+        </div>
+        <div class="preview-teams" id="previewTeams"></div>
+        <div class="preview-main">
+          <div class="card radar-card">
+            <div class="card-head">
+              <h3>능력치 비교</h3>
+              <div class="matchup-tabs" id="matchupTabs"></div>
+            </div>
+            <div class="radar-wrap">
+              <canvas id="radarCanvas" width="520" height="420"></canvas>
+            </div>
+            <div class="stat-bars" id="statBars"></div>
+          </div>
+          <div class="card analysis-card">
+            <div class="card-head"><h3>상성 · 승률 분석</h3></div>
+            <div class="winrate" id="winRate"></div>
+            <div class="type-analysis" id="typeAnalysis"></div>
+            <button class="btn btn-primary btn-lg" id="startBattle">전투 시작! <span class="arrow">⚔</span></button>
+            <p class="tiny">오토 배틀 · 배속 1x/2x/3x · 일시정지 지원</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="setup-foot">
+      <button class="btn btn-ghost" id="navPrev">← 이전</button>
+      <div class="foot-hint" id="footHint"></div>
+      <button class="btn btn-primary" id="navNext">다음 →</button>
+    </footer>
+  </section>
+
+  <!-- ================= 배틀 ================= -->
+  <section id="screenBattle" class="screen">
+    <div class="battle-layout">
+      <div class="stage-wrap" id="stageWrap">
+        <canvas id="sceneCanvas"></canvas>
+        <div class="stage-top">
+          <div class="weather-chip" id="weatherChip">☀️ 맑음</div>
+          <div class="turn-chip" id="turnChip">TURN 1</div>
+          <div class="battle-tools">
+            <div class="speed-group" id="speedGroup">
+              <button data-speed="1" class="on">1x</button>
+              <button data-speed="2">2x</button>
+              <button data-speed="3">3x</button>
+            </div>
+            <button class="tool-btn" id="pauseBtn" title="일시정지">⏸</button>
+          </div>
+        </div>
+
+        <div class="mons" id="monsLayer">
+          <div class="mon mon-ally" id="monA">
+            <div class="mon-shadow"></div>
+            <div class="mon-img-wrap"><img id="imgA" alt=""></div>
+            <div class="mon-fx" id="auraA"></div>
+          </div>
+          <div class="mon mon-enemy" id="monB">
+            <div class="mon-shadow"></div>
+            <div class="mon-img-wrap"><img id="imgB" alt=""></div>
+            <div class="mon-fx" id="auraB"></div>
+          </div>
+        </div>
+
+        <div class="hud hud-ally" id="hudA">
+          <div class="hud-top">
+            <span class="hud-name" id="nameA">-</span>
+            <span class="hud-lv">Lv.50</span>
+            <span class="hud-status" id="statusA"></span>
+          </div>
+          <div class="hp-bar"><i id="hpFillA"></i><span class="hp-num" id="hpTextA">0 / 0</span></div>
+          <div class="hud-types" id="typesA"></div>
+        </div>
+        <div class="hud hud-enemy" id="hudB">
+          <div class="hud-top">
+            <span class="hud-name" id="nameB">-</span>
+            <span class="hud-lv">Lv.50</span>
+            <span class="hud-status" id="statusB"></span>
+          </div>
+          <div class="hp-bar"><i id="hpFillB"></i><span class="hp-num" id="hpTextB">0 / 0</span></div>
+          <div class="hud-types" id="typesB"></div>
+        </div>
+
+        <div class="popup-layer" id="popupLayer"></div>
+        <div class="banner" id="banner"></div>
+        <div class="move-toast" id="moveToast"></div>
+        <canvas id="fxCanvas"></canvas>
+        <div class="stage-hitstop" id="hitstop"></div>
+      </div>
+
+      <aside class="battle-side">
+        <div class="side-block rosters">
+          <div class="roster" id="rosterA"><b>내 팀</b><div class="roster-list"></div></div>
+          <div class="roster" id="rosterB"><b>상대 팀</b><div class="roster-list"></div></div>
+        </div>
+        <div class="side-block log-block">
+          <div class="log-head"><b>배틀 로그</b><span id="logCount"></span></div>
+          <div class="battle-log" id="battleLog"></div>
+        </div>
+        <div class="side-block battle-actions">
+          <button class="btn btn-ghost sm" id="battleSkip">결과 바로 보기 ⏭</button>
+          <button class="btn btn-ghost sm" id="battleQuit">설정으로 돌아가기</button>
+        </div>
+      </aside>
+    </div>
+
+    <!-- 결과 -->
+    <div class="result-overlay" id="resultOverlay">
+      <div class="result-card">
+        <div class="result-crown" id="resultCrown">👑</div>
+        <h2 id="winnerTitle">승리!</h2>
+        <p id="resultSub">배틀이 끝났습니다</p>
+        <div class="result-mvp" id="mvpBox"></div>
+        <div class="result-stats" id="statsTable"></div>
+        <details class="result-log-wrap">
+          <summary>전투 로그 보기</summary>
+          <div class="result-log" id="resultLog"></div>
+        </details>
+        <div class="result-actions">
+          <button class="btn btn-primary" id="againBtn">다시 배틀</button>
+          <button class="btn btn-ghost" id="setupBtn">설정 바꾸기</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 포켓몬 선택 모달 ================= -->
+  <div class="modal" id="picker" aria-hidden="true">
+    <div class="modal-card">
+      <div class="modal-head">
+        <div>
+          <span class="kicker">POKÉDEX</span>
+          <h3 id="pickerTitle">포켓몬 선택</h3>
+        </div>
+        <button class="icon-btn" id="pickerClose" aria-label="닫기">✕</button>
+      </div>
+      <div class="picker-controls">
+        <div class="search-box">
+          <span>🔍</span>
+          <input id="pickerSearch" type="search" placeholder="이름 또는 도감번호 (예: 피카츄, 25)" autocomplete="off">
+        </div>
+        <button class="btn btn-ghost sm" id="pickerRandom">🎲 이 칸 랜덤</button>
+      </div>
+      <div class="chip-row" id="genChips"></div>
+      <div class="chip-row" id="typeChips"></div>
+      <div class="picker-grid" id="pickerGrid"></div>
+      <div class="picker-foot"><span id="pickerCount">1,025마리</span><span class="tiny">클릭하면 선택한 칸에 배치됩니다.</span></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

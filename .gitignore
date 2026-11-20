@@ -1,0 +1,4 @@
+data/csv/
+tools/shots/
+*.log
+.DS_Store
